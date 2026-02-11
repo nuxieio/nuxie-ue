@@ -4,9 +4,26 @@
     <log text="Nuxie APL init" />
   </init>
 
+  <minimumSDKAPI>26</minimumSDKAPI>
+
   <androidManifestUpdates>
     <addMetaData android:name="NUXIE_API_KEY" android:value="" />
   </androidManifestUpdates>
+
+  <gradleCopies>
+    <copyFile src="$S(PluginDir)/src/io/nuxie/unreal/NuxieBridge.java" dst="$S(BuildDir)/src/io/nuxie/unreal/NuxieBridge.java" />
+  </gradleCopies>
+
+  <buildGradleAdditions>
+    <insert>
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation "io.nuxie:nuxie-android:0.1.0"
+}
+    </insert>
+  </buildGradleAdditions>
 
   <proguardAdditions>
     <insert>
