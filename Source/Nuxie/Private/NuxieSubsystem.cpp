@@ -3,7 +3,7 @@
 #include "Async/Async.h"
 #include "Engine/Engine.h"
 #include "Misc/Guid.h"
-#include "Platform/NuxiePlatformBridge.h"
+#include "NuxiePlatformBridge.h"
 
 class FNuxieBridgeListener final : public INuxiePlatformBridgeListener
 {
@@ -135,6 +135,8 @@ public:
 private:
   TWeakObjectPtr<UNuxieSubsystem> Owner;
 };
+
+UNuxieSubsystem::~UNuxieSubsystem() = default;
 
 void UNuxieSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {

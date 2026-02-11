@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Platform/NuxiePlatformBridge.h"
+#include "NuxiePlatformBridge.h"
 
 class FNuxieNoopBridge final : public INuxiePlatformBridge
 {

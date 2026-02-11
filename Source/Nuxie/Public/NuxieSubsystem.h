@@ -3,21 +3,19 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
-#include "NuxieDelegates.h"
+#include "NuxiePlatformBridge.h"
 #include "NuxiePurchaseController.h"
 #include "NuxieTypes.h"
 #include "NuxieSubsystem.generated.h"
 
-class INuxiePlatformBridge;
-class INuxiePlatformBridgeListener;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNuxieTriggerUpdateEvent, const FString&, RequestId, const FNuxieTriggerUpdate&, Update);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FNuxieFeatureAccessChangedEvent, const FString&, FeatureId, const FNuxieFeatureAccess&, PreviousAccess, const FNuxieFeatureAccess&, CurrentAccess);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNuxiePurchaseRequestEvent, const FNuxiePurchaseRequest&, Request);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNuxieRestoreRequestEvent, const FNuxieRestoreRequest&, Request);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNuxieFlowPresentedEvent, const FString&, FlowId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNuxieFlowDismissedEvent, const FString&, FlowId);
 
-using FNuxieErrorCallback = TFunction<void(const FNuxieError&)>;
-using FNuxieProfileSuccessCallback = TFunction<void(const FNuxieProfileResponse&)>;
-using FNuxieFeatureCheckSuccessCallback = TFunction<void(const FNuxieFeatureCheckResult&)>;
-using FNuxieFeatureAccessSuccessCallback = TFunction<void(const FNuxieFeatureAccess&)>;
-using FNuxieFeatureUsageSuccessCallback = TFunction<void(const FNuxieFeatureUsageResult&)>;
-using FNuxieBoolSuccessCallback = TFunction<void(bool)>;
-using FNuxieIntSuccessCallback = TFunction<void(int32)>;
+DECLARE_MULTICAST_DELEGATE_TwoParams(FNuxieTriggerUpdateNativeEvent, const FString&, const FNuxieTriggerUpdate&);
 
 UCLASS()
 class NUXIE_API UNuxieSubsystem : public UGameInstanceSubsystem
@@ -25,6 +23,7 @@ class NUXIE_API UNuxieSubsystem : public UGameInstanceSubsystem
   GENERATED_BODY()
 
 public:
+  virtual ~UNuxieSubsystem() override;
   virtual void Initialize(FSubsystemCollectionBase& Collection) override;
   virtual void Deinitialize() override;
 

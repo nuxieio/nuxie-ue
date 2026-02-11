@@ -99,4 +99,4 @@ public:
   virtual bool CompleteRestore(const FString& RequestId, const FNuxieRestoreResult& Result, FNuxieError& OutError) = 0;
 };
 
-TUniquePtr<INuxiePlatformBridge> CreateNuxiePlatformBridge();
+NUXIE_API TUniquePtr<INuxiePlatformBridge> CreateNuxiePlatformBridge();

@@ -1,4 +1,4 @@
-#include "Platform/NuxiePlatformBridge.h"
+#include "NuxieBridgeRouter.h"
 
 #include "Platform/NuxieNoopBridge.h"
 

@@ -1,3 +1,5 @@
+#include "NuxieAsyncQueue.h"
+
 #include "Async/Async.h"
 
 void NuxieRunOnGameThread(TFunction<void()> Work)

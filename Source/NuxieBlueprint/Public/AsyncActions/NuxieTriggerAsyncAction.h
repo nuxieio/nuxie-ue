@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Kismet/CancellableAsyncAction.h"
+#include "Engine/CancellableAsyncAction.h"
 
 #include "NuxieTypes.h"
 #include "NuxieTriggerAsyncAction.generated.h"
