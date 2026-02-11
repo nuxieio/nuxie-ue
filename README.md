@@ -28,6 +28,7 @@ Native-first Unreal Engine plugin for Nuxie mobile SDKs.
 ## Requirements
 
 - Unreal Engine `5.4+`
+- UE platform components for both `Android` and `IOS` installed (Epic Games Launcher -> Unreal Engine -> `...` -> `Options`)
 - Android target for full native bridge behavior
 - iOS target with `Nuxie` iOS SDK linked in app build
 - Java 8+ for local JVM bridge tests
@@ -111,6 +112,19 @@ Or both via CI-equivalent sequence:
 node ./scripts/test-trigger-contract.mjs
 ./scripts/test-android-bridge.sh
 ```
+
+Validate Unreal compile/package (UE 5.7 example):
+
+```bash
+UE_ROOT="/Users/Shared/Epic Games/UE_5.7"
+"$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildPlugin \
+  -Plugin="$(pwd)/Nuxie.uplugin" \
+  -Package="/tmp/nuxie-ue-package" \
+  -TargetPlatforms=Android+IOS \
+  -Rocket -StrictIncludes
+```
+
+If output shows only `Building plugin for host platforms: Mac`, UE does not currently see Android/iOS as valid code targets. See `docs/testing.md` for SDK troubleshooting commands.
 
 ## Documentation
 

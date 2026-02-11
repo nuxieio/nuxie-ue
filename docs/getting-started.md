@@ -37,5 +37,6 @@ When purchase/restore requests arrive, return `FNuxiePurchaseResult` / `FNuxieRe
 
 ## 7. Validate on device
 
+- Ensure UE has Android/iOS platform components installed (Epic Games Launcher -> Unreal Engine -> `...` -> `Options`).
 - Android: verify flow presentation and callbacks on a physical/emulator device.
 - iOS: verify linked `Nuxie` SDK symbols resolve and setup succeeds.
