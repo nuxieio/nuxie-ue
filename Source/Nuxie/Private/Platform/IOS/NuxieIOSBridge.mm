@@ -212,25 +212,39 @@ bool FNuxieIOSBridge::Configure(const FNuxieConfigureOptions& Options, FNuxieErr
 
   id Config = ((id(*)(id, SEL, id))objc_msgSend)([ConfigClass alloc], InitSel, ToNSString(Options.ApiKey));
 
-  @try {
-    if (!Options.ApiEndpoint.IsEmpty())
-    {
-      NSURL* Endpoint = [NSURL URLWithString:ToNSString(Options.ApiEndpoint)];
-      [Config setValue:Endpoint forKey:@"apiEndpoint"];
-    }
-    if (!Options.LocaleIdentifier.IsEmpty())
-    {
-      [Config setValue:ToNSString(Options.LocaleIdentifier) forKey:@"localeIdentifier"];
-    }
-    [Config setValue:@(Options.bEnableConsoleLogging) forKey:@"enableConsoleLogging"];
-    [Config setValue:@(Options.bEnableFileLogging) forKey:@"enableFileLogging"];
-    [Config setValue:@(Options.bRedactSensitiveData) forKey:@"redactSensitiveData"];
-    [Config setValue:@(Options.bIsDebugMode) forKey:@"isDebugMode"];
-  }
-  @catch (NSException* Ex)
+  auto SetObjectIfSupported = ^(NSString* SelectorName, id Value)
   {
-    // Keep going with defaults if newer/older SDK doesn't expose a field.
+    SEL Setter = NSSelectorFromString(SelectorName);
+    if ([Config respondsToSelector:Setter])
+    {
+      ((void(*)(id, SEL, id))objc_msgSend)(Config, Setter, Value);
+    }
+  };
+
+  auto SetBoolIfSupported = ^(NSString* SelectorName, bool Value)
+  {
+    SEL Setter = NSSelectorFromString(SelectorName);
+    if ([Config respondsToSelector:Setter])
+    {
+      ((void(*)(id, SEL, BOOL))objc_msgSend)(Config, Setter, Value ? YES : NO);
+    }
+  };
+
+  if (!Options.ApiEndpoint.IsEmpty())
+  {
+    NSURL* Endpoint = [NSURL URLWithString:ToNSString(Options.ApiEndpoint)];
+    SetObjectIfSupported(@"setApiEndpoint:", Endpoint);
   }
+
+  if (!Options.LocaleIdentifier.IsEmpty())
+  {
+    SetObjectIfSupported(@"setLocaleIdentifier:", ToNSString(Options.LocaleIdentifier));
+  }
+
+  SetBoolIfSupported(@"setEnableConsoleLogging:", Options.bEnableConsoleLogging);
+  SetBoolIfSupported(@"setEnableFileLogging:", Options.bEnableFileLogging);
+  SetBoolIfSupported(@"setRedactSensitiveData:", Options.bRedactSensitiveData);
+  SetBoolIfSupported(@"setIsDebugMode:", Options.bIsDebugMode);
 
   SEL SetupWithErrorSel = NSSelectorFromString(@"setupWith:error:");
   if ([SDK respondsToSelector:SetupWithErrorSel])
@@ -459,7 +473,7 @@ bool FNuxieIOSBridge::StartTrigger(
     return false;
   }
 
-  __block INuxiePlatformBridgeListener* ListenerRef = Listener;
+  INuxiePlatformBridgeListener* ListenerRef = Listener;
   void (^Handler)(id) = ^(id UpdateObject)
   {
     if (ListenerRef == nullptr)

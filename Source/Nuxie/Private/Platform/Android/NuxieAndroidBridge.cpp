@@ -511,7 +511,7 @@ bool FNuxieAndroidBridge::CallVoidMethod(FNuxieError& OutError, const char* Meth
 #endif
 }
 
-bool FNuxieAndroidBridge::CallBoolMethod(FNuxieError& OutError, const char* MethodName, const char* Signature, bool& OutValue, ...)
+bool FNuxieAndroidBridge::CallBoolMethod(FNuxieError& OutError, const char* MethodName, bool& OutValue, const char* Signature, ...)
 {
 #if PLATFORM_ANDROID
   JNIEnv* Env = FAndroidApplication::GetJavaEnv();
@@ -548,7 +548,7 @@ bool FNuxieAndroidBridge::CallBoolMethod(FNuxieError& OutError, const char* Meth
 #endif
 }
 
-bool FNuxieAndroidBridge::CallIntMethod(FNuxieError& OutError, const char* MethodName, const char* Signature, int32& OutValue, ...)
+bool FNuxieAndroidBridge::CallIntMethod(FNuxieError& OutError, const char* MethodName, int32& OutValue, const char* Signature, ...)
 {
 #if PLATFORM_ANDROID
   JNIEnv* Env = FAndroidApplication::GetJavaEnv();
@@ -585,7 +585,7 @@ bool FNuxieAndroidBridge::CallIntMethod(FNuxieError& OutError, const char* Metho
 #endif
 }
 
-bool FNuxieAndroidBridge::CallStringMethod(FNuxieError& OutError, const char* MethodName, const char* Signature, FString& OutValue, ...)
+bool FNuxieAndroidBridge::CallStringMethod(FNuxieError& OutError, const char* MethodName, FString& OutValue, const char* Signature, ...)
 {
 #if PLATFORM_ANDROID
   JNIEnv* Env = FAndroidApplication::GetJavaEnv();
@@ -727,7 +727,7 @@ FString FNuxieAndroidBridge::GetDistinctId() const
 {
   FNuxieError Error;
   FString Value;
-  const_cast<FNuxieAndroidBridge*>(this)->CallStringMethod(Error, "getDistinctId", "()Ljava/lang/String;", Value);
+  const_cast<FNuxieAndroidBridge*>(this)->CallStringMethod(Error, "getDistinctId", Value, "()Ljava/lang/String;");
   return Value;
 }
 
@@ -735,7 +735,7 @@ FString FNuxieAndroidBridge::GetAnonymousId() const
 {
   FNuxieError Error;
   FString Value;
-  const_cast<FNuxieAndroidBridge*>(this)->CallStringMethod(Error, "getAnonymousId", "()Ljava/lang/String;", Value);
+  const_cast<FNuxieAndroidBridge*>(this)->CallStringMethod(Error, "getAnonymousId", Value, "()Ljava/lang/String;");
   return Value;
 }
 
@@ -743,7 +743,7 @@ bool FNuxieAndroidBridge::IsIdentified() const
 {
   FNuxieError Error;
   bool bValue = false;
-  const_cast<FNuxieAndroidBridge*>(this)->CallBoolMethod(Error, "getIsIdentified", "()Z", bValue);
+  const_cast<FNuxieAndroidBridge*>(this)->CallBoolMethod(Error, "getIsIdentified", bValue, "()Z");
   return bValue;
 }
 
@@ -879,7 +879,7 @@ void FNuxieAndroidBridge::RunAsyncProfile(FNuxieProfileSuccessCallback OnSuccess
     FString Payload;
     FNuxieProfileResponse Profile;
 
-    if (!CallStringMethod(Error, "refreshProfile", "()Ljava/lang/String;", Payload) || !ParseProfilePayload(Payload, Profile))
+    if (!CallStringMethod(Error, "refreshProfile", Payload, "()Ljava/lang/String;") || !ParseProfilePayload(Payload, Profile))
     {
       AsyncTask(ENamedThreads::GameThread, [OnError = MoveTemp(OnError), Error]() mutable
       {
@@ -915,8 +915,8 @@ void FNuxieAndroidBridge::RunAsyncHasFeature(
     const bool bSuccess = CallStringMethod(
       Error,
       "hasFeature",
-      "(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Ljava/lang/String;",
       Payload,
+      "(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Ljava/lang/String;",
       Feature,
       Required,
       Entity);
@@ -972,8 +972,8 @@ void FNuxieAndroidBridge::RunAsyncCheckFeature(
     const bool bSuccess = CallStringMethod(
       Error,
       "checkFeature",
-      "(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Z)Ljava/lang/String;",
       Payload,
+      "(Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Z)Ljava/lang/String;",
       Feature,
       Required,
       Entity,
@@ -1032,8 +1032,8 @@ void FNuxieAndroidBridge::RunAsyncUseFeatureAndWait(
     const bool bSuccess = CallStringMethod(
       Error,
       "useFeatureAndWait",
-      "(Ljava/lang/String;DLjava/lang/String;ZLjava/lang/String;)Ljava/lang/String;",
       Payload,
+      "(Ljava/lang/String;DLjava/lang/String;ZLjava/lang/String;)Ljava/lang/String;",
       Feature,
       static_cast<jdouble>(Amount),
       Entity,
@@ -1142,7 +1142,7 @@ void FNuxieAndroidBridge::FlushEventsAsync(FNuxieBoolSuccessCallback OnSuccess, 
   RunAsyncBool(MoveTemp(OnSuccess), MoveTemp(OnError), [this](FNuxieError& Error)
   {
     bool bValue = false;
-    if (!CallBoolMethod(Error, "flushEvents", "()Z", bValue))
+    if (!CallBoolMethod(Error, "flushEvents", bValue, "()Z"))
     {
       return false;
     }
@@ -1154,7 +1154,7 @@ void FNuxieAndroidBridge::GetQueuedEventCountAsync(FNuxieIntSuccessCallback OnSu
 {
   RunAsyncInt(MoveTemp(OnSuccess), MoveTemp(OnError), [this](int32& OutValue, FNuxieError& Error)
   {
-    return CallIntMethod(Error, "getQueuedEventCount", "()I", OutValue);
+    return CallIntMethod(Error, "getQueuedEventCount", OutValue, "()I");
   });
 }
 

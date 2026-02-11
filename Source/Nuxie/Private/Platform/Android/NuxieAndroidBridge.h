@@ -63,6 +63,13 @@ public:
   virtual bool CompletePurchase(const FString& RequestId, const FNuxiePurchaseResult& Result, FNuxieError& OutError) override;
   virtual bool CompleteRestore(const FString& RequestId, const FNuxieRestoreResult& Result, FNuxieError& OutError) override;
 
+  void HandleTriggerUpdate(const FString& RequestId, const FString& Payload, bool bTerminal, int64 TimestampMs);
+  void HandleFeatureAccessChanged(const FString& FeatureId, const FString& FromPayload, const FString& ToPayload);
+  void HandlePurchaseRequest(const FString& Payload);
+  void HandleRestoreRequest(const FString& Payload);
+  void HandleFlowPresented(const FString& FlowId);
+  void HandleFlowDismissed(const FString& Payload);
+
 private:
   static FString EncodeMap(const TMap<FString, FString>& Values);
   static TMap<FString, FString> DecodeMap(const FString& Encoded);
@@ -78,18 +85,11 @@ private:
   static bool ParseTriggerUpdatePayload(const FString& Payload, FNuxieTriggerUpdate& OutUpdate);
 
   bool CallVoidMethod(FNuxieError& OutError, const char* MethodName, const char* Signature, ...);
-  bool CallBoolMethod(FNuxieError& OutError, const char* MethodName, const char* Signature, bool& OutValue, ...);
-  bool CallIntMethod(FNuxieError& OutError, const char* MethodName, const char* Signature, int32& OutValue, ...);
-  bool CallStringMethod(FNuxieError& OutError, const char* MethodName, const char* Signature, FString& OutValue, ...);
+  bool CallBoolMethod(FNuxieError& OutError, const char* MethodName, bool& OutValue, const char* Signature, ...);
+  bool CallIntMethod(FNuxieError& OutError, const char* MethodName, int32& OutValue, const char* Signature, ...);
+  bool CallStringMethod(FNuxieError& OutError, const char* MethodName, FString& OutValue, const char* Signature, ...);
   bool CaptureJavaException(FNuxieError& OutError);
   void EmitError(const TCHAR* Code, const TCHAR* Message);
-
-  void HandleTriggerUpdate(const FString& RequestId, const FString& Payload, bool bTerminal, int64 TimestampMs);
-  void HandleFeatureAccessChanged(const FString& FeatureId, const FString& FromPayload, const FString& ToPayload);
-  void HandlePurchaseRequest(const FString& Payload);
-  void HandleRestoreRequest(const FString& Payload);
-  void HandleFlowPresented(const FString& FlowId);
-  void HandleFlowDismissed(const FString& Payload);
 
   void RunAsyncBool(FNuxieBoolSuccessCallback OnSuccess, FNuxieErrorCallback OnError, TFunction<bool(FNuxieError&)> Work);
   void RunAsyncInt(FNuxieIntSuccessCallback OnSuccess, FNuxieErrorCallback OnError, TFunction<bool(int32&, FNuxieError&)> Work);
