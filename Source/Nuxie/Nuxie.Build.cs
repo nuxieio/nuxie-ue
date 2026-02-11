@@ -21,7 +21,8 @@ public class Nuxie : ModuleRules
 
     PrivateDependencyModuleNames.AddRange(new string[]
     {
-      "ApplicationCore"
+      "ApplicationCore",
+      "Projects"
     });
 
     if (Target.Platform == UnrealTargetPlatform.Android)

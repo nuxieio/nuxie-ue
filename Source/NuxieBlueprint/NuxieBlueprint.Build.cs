@@ -14,5 +14,10 @@ public class NuxieBlueprint : ModuleRules
       "Engine",
       "Nuxie"
     });
+
+    PrivateDependencyModuleNames.AddRange(new string[]
+    {
+      "Projects"
+    });
   }
 }
