@@ -76,3 +76,20 @@ Common failure output:
 - `Missing files required to build IOS targets. Enable IOS as an optional download component in the Epic Games Launcher.`
 
 Fix by installing Android/iOS UE platform components in Epic Games Launcher for your engine version, then rerun the commands above.
+
+### If Android build reports invalid SDK
+
+If Android compile fails with:
+
+- `Unable to find valid SDK(s) for Android`
+- `Platform Android is not a valid platform to build`
+
+install UE-required Android SDK/NDK components (`r27c`) and register them with UE:
+
+```bash
+UE_ROOT="/Users/Shared/Epic Games/UE_5.7"
+"$UE_ROOT/Engine/Extras/Android/SetupAndroid.command" \
+  android-34 35.0.1 3.22.1 27.2.12479018 -noninteractive
+```
+
+This script expects Android Studio to be installed (default path: `~/Applications/Android Studio.app`) and the SDK root at `~/Library/Android/sdk`.

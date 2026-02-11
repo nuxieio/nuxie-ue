@@ -29,6 +29,7 @@ Native-first Unreal Engine plugin for Nuxie mobile SDKs.
 
 - Unreal Engine `5.4+`
 - UE platform components for both `Android` and `IOS` installed (Epic Games Launcher -> Unreal Engine -> `...` -> `Options`)
+- Android Studio + Android SDK/NDK installed for UE (see `docs/testing.md`, `SetupAndroid.command` flow)
 - Android target for full native bridge behavior
 - iOS target with `Nuxie` iOS SDK linked in app build
 - Java 8+ for local JVM bridge tests
