@@ -1,0 +1,16 @@
+# Unreal
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vscode/
+.vs/
+*.VC.db
+*.VC.opendb
+
+# macOS
+.DS_Store
+
+# Android bridge tests
+ThirdParty/Android/.gradle/
+ThirdParty/Android/build/

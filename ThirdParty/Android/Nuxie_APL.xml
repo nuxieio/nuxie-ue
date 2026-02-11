@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root xmlns:android="http://schemas.android.com/apk/res/android">
+  <init>
+    <log text="Nuxie APL init" />
+  </init>
+
+  <androidManifestUpdates>
+    <addMetaData android:name="NUXIE_API_KEY" android:value="" />
+  </androidManifestUpdates>
+
+  <proguardAdditions>
+    <insert>
+-keep class io.nuxie.** { *; }
+-keep class io.nuxie.unreal.** { *; }
+    </insert>
+  </proguardAdditions>
+</root>

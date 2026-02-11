@@ -1,0 +1,29 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "Nuxie",
+  "Description": "Native-first Unreal Engine plugin for Nuxie mobile SDKs.",
+  "Category": "Analytics",
+  "CreatedBy": "Nuxie",
+  "CreatedByURL": "https://nuxie.io",
+  "DocsURL": "https://github.com/nuxieio/nuxie-ue",
+  "CanContainContent": false,
+  "Installed": false,
+  "SupportedTargetPlatforms": [
+    "Android",
+    "IOS"
+  ],
+  "Modules": [
+    {
+      "Name": "Nuxie",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "NuxieBlueprint",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
