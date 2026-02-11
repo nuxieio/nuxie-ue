@@ -5,9 +5,16 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  contract-and-bridge-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate plugin descriptor exists
+
+      - name: Validate plugin descriptor
         run: test -f Nuxie.uplugin
+
+      - name: Run trigger contract fixtures
+        run: node ./scripts/test-trigger-contract.mjs
+
+      - name: Run Android bridge JVM tests
+        run: ./scripts/test-android-bridge.sh
