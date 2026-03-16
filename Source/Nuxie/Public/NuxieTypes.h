@@ -82,6 +82,7 @@ UENUM(BlueprintType)
 enum class ENuxieJourneyExitReason : uint8
 {
   Completed,
+  Dismissed,
   GoalMet,
   TriggerUnmatched,
   Expired,

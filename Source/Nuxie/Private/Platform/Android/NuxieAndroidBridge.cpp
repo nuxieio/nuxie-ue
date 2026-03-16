@@ -396,6 +396,10 @@ bool FNuxieAndroidBridge::ParseTriggerUpdatePayload(const FString& Payload, FNux
     {
       OutUpdate.Journey.ExitReason = ENuxieJourneyExitReason::GoalMet;
     }
+    else if (ExitReason == TEXT("dismissed"))
+    {
+      OutUpdate.Journey.ExitReason = ENuxieJourneyExitReason::Dismissed;
+    }
     else if (ExitReason == TEXT("trigger_unmatched"))
     {
       OutUpdate.Journey.ExitReason = ENuxieJourneyExitReason::TriggerUnmatched;
