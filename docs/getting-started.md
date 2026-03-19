@@ -58,12 +58,14 @@ iOS keys:
 
 Android manifest permissions:
 
+- `android.permission.POST_NOTIFICATIONS`
 - `android.permission.CAMERA`
 - `android.permission.RECORD_AUDIO`
-- `android.permission.READ_MEDIA_IMAGES` on Android 13+ or
+- `android.permission.READ_MEDIA_IMAGES` on Android 13+ and
   `android.permission.READ_EXTERNAL_STORAGE` on Android 12 and below
 - `android.permission.ACCESS_COARSE_LOCATION` and/or
   `android.permission.ACCESS_FINE_LOCATION`
 
 `request_tracking` is iOS-only. `request_notifications` uses the native Android
-notification permission path provided by `nuxie-android`.
+notification permission path provided by `nuxie-android`, but Android 13+ apps
+still need `POST_NOTIFICATIONS` in the host manifest.
