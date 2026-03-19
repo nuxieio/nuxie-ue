@@ -34,6 +34,10 @@ Native-first Unreal Engine plugin for Nuxie mobile SDKs.
 - iOS target with `Nuxie` iOS SDK linked in app build
 - Java 8+ for local JVM bridge tests
 
+If your authored flows use native permission actions, the generated mobile
+projects also need the matching `Info.plist` usage descriptions and Android
+manifest permissions.
+
 ## Installation
 
 ### As monorepo submodule

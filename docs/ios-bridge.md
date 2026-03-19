@@ -22,3 +22,7 @@ Currently guarded with explicit `NATIVE_UNAVAILABLE` for operations where select
 ## Notes
 
 Because the bridge is dynamic, final runtime behavior depends on linked `Nuxie` iOS SDK symbol availability and selector naming in the consuming app build.
+
+If flows use `request_tracking` or `request_permission(...)`, the consuming iOS
+app must also include the matching `Info.plist` usage-description keys. The
+bridge does not generate those entries.
