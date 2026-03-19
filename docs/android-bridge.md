@@ -35,3 +35,8 @@ Default timeout: 60 seconds.
 - Java source copy into build directory
 - Gradle dependency insertion for `io.nuxie:nuxie-android`
 - proguard keep rules for Nuxie namespaces
+
+If flows use `request_permission(...)`, the consuming Android app must still
+declare the matching dangerous permissions in its manifest. The bridge itself
+does not inject camera, microphone, photo-library, or location permissions for
+you.
