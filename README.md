@@ -43,7 +43,7 @@ manifest permissions.
 ### As monorepo submodule
 
 ```bash
-git submodule add git@github.com:nuxieio/nuxie-ue.git packages/nuxie-ue
+git submodule add git@github.com:nuxieai/nuxie-ue.git packages/nuxie-ue
 ```
 
 ### In Unreal project

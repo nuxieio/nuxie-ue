@@ -6,8 +6,8 @@
   "Description": "Native-first Unreal Engine plugin for Nuxie mobile SDKs.",
   "Category": "Analytics",
   "CreatedBy": "Nuxie",
-  "CreatedByURL": "https://nuxie.io",
-  "DocsURL": "https://github.com/nuxieio/nuxie-ue",
+  "CreatedByURL": "https://nuxie.ai",
+  "DocsURL": "https://github.com/nuxieai/nuxie-ue",
   "CanContainContent": false,
   "Installed": false,
   "SupportedTargetPlatforms": [
