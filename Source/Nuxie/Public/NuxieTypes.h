@@ -8,9 +8,7 @@ UENUM(BlueprintType)
 enum class ENuxieEnvironment : uint8
 {
   Production,
-  Staging,
   Development,
-  Custom,
 };
 
 UENUM(BlueprintType)
@@ -25,69 +23,17 @@ enum class ENuxieLogLevel : uint8
 };
 
 UENUM(BlueprintType)
-enum class ENuxieEventLinkingPolicy : uint8
+enum class ENuxiePurchaseHandlingMode : uint8
 {
-  KeepSeparate,
-  MigrateOnIdentify,
+  Full,
+  Observer,
 };
 
 UENUM(BlueprintType)
-enum class ENuxieTriggerUpdateKind : uint8
+enum class ENuxieFeatureCheckPolicy : uint8
 {
-  Decision,
-  Entitlement,
-  Journey,
-  Error,
-};
-
-UENUM(BlueprintType)
-enum class ENuxieTriggerDecisionKind : uint8
-{
-  NoMatch,
-  Suppressed,
-  JourneyStarted,
-  JourneyResumed,
-  FlowShown,
-  AllowedImmediate,
-  DeniedImmediate,
-};
-
-UENUM(BlueprintType)
-enum class ENuxieSuppressReason : uint8
-{
-  AlreadyActive,
-  ReentryLimited,
-  Holdout,
-  NoFlow,
-  Unknown,
-};
-
-UENUM(BlueprintType)
-enum class ENuxieEntitlementUpdateKind : uint8
-{
-  Pending,
-  Allowed,
-  Denied,
-};
-
-UENUM(BlueprintType)
-enum class ENuxieGateSource : uint8
-{
-  Cache,
-  Purchase,
-  Restore,
-};
-
-UENUM(BlueprintType)
-enum class ENuxieJourneyExitReason : uint8
-{
-  Completed,
-  Dismissed,
-  GoalMet,
-  TriggerUnmatched,
-  Expired,
-  Error,
-  Cancelled,
+  CacheFirst,
+  Remote,
 };
 
 UENUM(BlueprintType)
@@ -99,18 +45,27 @@ enum class ENuxieFeatureType : uint8
 };
 
 UENUM(BlueprintType)
-enum class ENuxiePurchaseResultKind : uint8
+enum class ENuxieScalarType : uint8
 {
-  Success,
+  String,
+  Integer,
+  Number,
+  Boolean,
+};
+
+UENUM(BlueprintType)
+enum class ENuxiePurchaseResultType : uint8
+{
+  Purchased,
   Cancelled,
   Pending,
   Failed,
 };
 
 UENUM(BlueprintType)
-enum class ENuxieRestoreResultKind : uint8
+enum class ENuxieRestoreResultType : uint8
 {
-  Success,
+  Restored,
   NoPurchases,
   Failed,
 };
@@ -138,6 +93,28 @@ struct NUXIE_API FNuxieError
   }
 };
 
+/** A portable scalar accepted by Journey events, activity, and App Actions. */
+USTRUCT(BlueprintType)
+struct NUXIE_API FNuxieScalarValue
+{
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  ENuxieScalarType Type = ENuxieScalarType::String;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString StringValue;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  int64 IntegerValue = 0;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  double NumberValue = 0.0;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  bool bBooleanValue = false;
+};
+
 USTRUCT(BlueprintType)
 struct NUXIE_API FNuxieConfigureOptions
 {
@@ -150,163 +127,26 @@ struct NUXIE_API FNuxieConfigureOptions
   ENuxieEnvironment Environment = ENuxieEnvironment::Production;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString ApiEndpoint;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   ENuxieLogLevel LogLevel = ENuxieLogLevel::Warning;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   bool bEnableConsoleLogging = true;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bEnableFileLogging = false;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   bool bRedactSensitiveData = true;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 RequestTimeoutSeconds = 30;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 RetryCount = 3;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 RetryDelaySeconds = 2;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 SyncIntervalSeconds = 3600;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bEnableCompression = true;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 EventBatchSize = 50;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 FlushAt = 20;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 FlushIntervalSeconds = 30;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 MaxQueueSize = 1000;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieEventLinkingPolicy EventLinkingPolicy = ENuxieEventLinkingPolicy::MigrateOnIdentify;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString LocaleIdentifier;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bIsDebugMode = false;
+  ENuxiePurchaseHandlingMode PurchaseHandlingMode = ENuxiePurchaseHandlingMode::Full;
 
+  /** iOS-only Test Store switch. Android ignores this value. */
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bRespectDoNotTrack = true;
+  bool bTestStoreEnabled = false;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   bool bUsePurchaseController = false;
-};
-
-USTRUCT(BlueprintType)
-struct NUXIE_API FNuxieTriggerOptions
-{
-  GENERATED_BODY()
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  TMap<FString, FString> Properties;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  TMap<FString, FString> UserProperties;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  TMap<FString, FString> UserPropertiesSetOnce;
-};
-
-USTRUCT(BlueprintType)
-struct NUXIE_API FNuxieJourneyRef
-{
-  GENERATED_BODY()
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString JourneyId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString CampaignId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString FlowId;
-};
-
-USTRUCT(BlueprintType)
-struct NUXIE_API FNuxieJourneyUpdate
-{
-  GENERATED_BODY()
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString JourneyId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString CampaignId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString FlowId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieJourneyExitReason ExitReason = ENuxieJourneyExitReason::Completed;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bGoalMet = false;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int64 GoalMetAtEpochMillis = 0;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bHasDurationSeconds = false;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  float DurationSeconds = 0.0f;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString FlowExitReason;
-};
-
-USTRUCT(BlueprintType)
-struct NUXIE_API FNuxieTriggerUpdate
-{
-  GENERATED_BODY()
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieTriggerUpdateKind Kind = ENuxieTriggerUpdateKind::Error;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieTriggerDecisionKind DecisionKind = ENuxieTriggerDecisionKind::NoMatch;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieSuppressReason SuppressReason = ENuxieSuppressReason::Unknown;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString RawSuppressReason;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieEntitlementUpdateKind EntitlementKind = ENuxieEntitlementUpdateKind::Pending;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieGateSource GateSource = ENuxieGateSource::Cache;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FNuxieJourneyRef JourneyRef;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FNuxieJourneyUpdate Journey;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FNuxieError Error;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bIsTerminal = false;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int64 TimestampMs = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -324,34 +164,52 @@ struct NUXIE_API FNuxieFeatureAccess
   bool bHasBalance = false;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 Balance = 0;
+  double Balance = 0.0;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   ENuxieFeatureType Type = ENuxieFeatureType::Boolean;
 };
 
 USTRUCT(BlueprintType)
-struct NUXIE_API FNuxieFeatureCheckResult
+struct NUXIE_API FNuxieFeatureAccessChanged
 {
   GENERATED_BODY()
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString CustomerId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString FeatureId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 RequiredBalance = 1;
+  bool bHasPreviousAccess = false;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString Code;
+  FNuxieFeatureAccess PreviousAccess;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FNuxieFeatureAccess Access;
+  FNuxieFeatureAccess CurrentAccess;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString PreviewJson;
+  int64 TimestampMs = 0;
+};
+
+USTRUCT(BlueprintType)
+struct NUXIE_API FNuxieFeatureUsageInfo
+{
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  double Current = 0.0;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  bool bHasLimit = false;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  double Limit = 0.0;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  bool bHasRemaining = false;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  double Remaining = 0.0;
 };
 
 USTRUCT(BlueprintType)
@@ -366,7 +224,7 @@ struct NUXIE_API FNuxieFeatureUsageResult
   FString FeatureId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  float AmountUsed = 0.0f;
+  double AmountUsed = 0.0;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString Message;
@@ -375,33 +233,70 @@ struct NUXIE_API FNuxieFeatureUsageResult
   bool bHasUsage = false;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 UsageCurrent = 0;
+  FNuxieFeatureUsageInfo Usage;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bHasUsageLimit = false;
+  bool bHasAuthoritativeAccess = false;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 UsageLimit = 0;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bHasUsageRemaining = false;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 UsageRemaining = 0;
+  FNuxieFeatureAccess AuthoritativeAccess;
 };
 
 USTRUCT(BlueprintType)
-struct NUXIE_API FNuxieProfileResponse
+struct NUXIE_API FNuxieActivityInfo
 {
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString CustomerId;
+  int32 SchemaVersion = 1;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString RawJson;
+  FString Id;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  int64 TimestampMs = 0;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  int64 ReceivedAtMs = 0;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString Name;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  TMap<FString, FNuxieScalarValue> Properties;
 };
 
+USTRUCT(BlueprintType)
+struct NUXIE_API FNuxieExperienceRef
+{
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString ExperienceId;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString ExperienceVersion;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString JourneyId;
+};
+
+USTRUCT(BlueprintType)
+struct NUXIE_API FNuxieAppAction
+{
+  GENERATED_BODY()
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString Name;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  TMap<FString, FNuxieScalarValue> Payload;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FNuxieExperienceRef Experience;
+};
+
+/** Portable checkout request; native bridges encode these fields as snake_case. */
 USTRUCT(BlueprintType)
 struct NUXIE_API FNuxiePurchaseRequest
 {
@@ -417,25 +312,25 @@ struct NUXIE_API FNuxiePurchaseRequest
   FString ProductId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString StoreProductId;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString BasePlanId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString PurchaseOptionId;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString OfferId;
+
+  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
+  FString PlacementId;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString DisplayName;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString DisplayPrice;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  bool bHasPrice = false;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  float Price = 0.0f;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString CurrencyCode;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   int64 TimestampMs = 0;
@@ -462,25 +357,7 @@ struct NUXIE_API FNuxiePurchaseResult
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxiePurchaseResultKind Kind = ENuxiePurchaseResultKind::Failed;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString ProductId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString PurchaseToken;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString OrderId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString TransactionId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString OriginalTransactionId;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  FString TransactionJws;
+  ENuxiePurchaseResultType Type = ENuxiePurchaseResultType::Failed;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString Message;
@@ -492,41 +369,8 @@ struct NUXIE_API FNuxieRestoreResult
   GENERATED_BODY()
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  ENuxieRestoreResultKind Kind = ENuxieRestoreResultKind::Failed;
-
-  UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
-  int32 RestoredCount = 0;
+  ENuxieRestoreResultType Type = ENuxieRestoreResultType::Failed;
 
   UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Nuxie")
   FString Message;
 };
-
-namespace Nuxie
-{
-  struct NUXIE_API FTriggerContract
-  {
-    static bool IsTerminal(const FNuxieTriggerUpdate& Update)
-    {
-      if (Update.Kind == ENuxieTriggerUpdateKind::Error || Update.Kind == ENuxieTriggerUpdateKind::Journey)
-      {
-        return true;
-      }
-
-      if (Update.Kind == ENuxieTriggerUpdateKind::Decision)
-      {
-        return Update.DecisionKind == ENuxieTriggerDecisionKind::NoMatch
-          || Update.DecisionKind == ENuxieTriggerDecisionKind::Suppressed
-          || Update.DecisionKind == ENuxieTriggerDecisionKind::AllowedImmediate
-          || Update.DecisionKind == ENuxieTriggerDecisionKind::DeniedImmediate;
-      }
-
-      if (Update.Kind == ENuxieTriggerUpdateKind::Entitlement)
-      {
-        return Update.EntitlementKind == ENuxieEntitlementUpdateKind::Allowed
-          || Update.EntitlementKind == ENuxieEntitlementUpdateKind::Denied;
-      }
-
-      return false;
-    }
-  };
-}

@@ -1,212 +1,146 @@
 #include "Platform/NuxieNoopBridge.h"
 
 #include "Async/Async.h"
-#include "Misc/Guid.h"
 
 namespace
 {
-  FNuxieError UnsupportedError()
+  void FailAsync(FNuxieErrorCallback OnError)
   {
-    return FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie is only supported on iOS/Android targets in this build."));
+    AsyncTask(ENamedThreads::GameThread, [
+      OnError = MoveTemp(OnError)]() mutable
+    {
+      OnError(FNuxieError::Make(
+        TEXT("NATIVE_UNAVAILABLE"),
+        TEXT("Nuxie is available only on iOS and Android.")));
+    });
   }
 }
 
 FNuxieError FNuxieNoopBridge::UnsupportedError()
 {
-  return ::UnsupportedError();
+  return FNuxieError::Make(
+    TEXT("NATIVE_UNAVAILABLE"),
+    TEXT("Nuxie is available only on iOS and Android."));
 }
 
-void FNuxieNoopBridge::SetListener(INuxiePlatformBridgeListener* InListener)
+void FNuxieNoopBridge::SetListener(
+  INuxiePlatformBridgeListener* InListener)
 {
-  Listener = InListener;
 }
 
-bool FNuxieNoopBridge::Configure(const FNuxieConfigureOptions& Options, FNuxieError& OutError)
-{
-  DistinctId = FString::Printf(TEXT("anon_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Digits));
-  AnonymousId = DistinctId;
-  OutError = UnsupportedError();
-  return false;
-}
-
-bool FNuxieNoopBridge::Shutdown(FNuxieError& OutError)
+bool FNuxieNoopBridge::Configure(
+  const FNuxieConfigureOptions& Options,
+  FNuxieError& OutError)
 {
   OutError = UnsupportedError();
   return false;
+}
+
+void FNuxieNoopBridge::ShutdownAsync(
+  FSimpleDelegate OnSuccess,
+  FNuxieErrorCallback OnError)
+{
+  FailAsync(MoveTemp(OnError));
 }
 
 bool FNuxieNoopBridge::Identify(
-  const FString& DistinctIdIn,
-  const TMap<FString, FString>& UserProperties,
-  const TMap<FString, FString>& UserPropertiesSetOnce,
+  const FString& DistinctId,
+  const TMap<FString, FNuxieScalarValue>& UserProperties,
+  const TMap<FString, FNuxieScalarValue>& UserPropertiesSetOnce,
   FNuxieError& OutError)
 {
-  DistinctId = DistinctIdIn;
   OutError = UnsupportedError();
   return false;
 }
 
-bool FNuxieNoopBridge::Reset(bool bKeepAnonymousId, FNuxieError& OutError)
+bool FNuxieNoopBridge::Reset(
+  bool bKeepAnonymousId,
+  FNuxieError& OutError)
 {
-  if (!bKeepAnonymousId)
-  {
-    AnonymousId = FString::Printf(TEXT("anon_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Digits));
-  }
-  DistinctId = AnonymousId;
   OutError = UnsupportedError();
   return false;
 }
 
 FString FNuxieNoopBridge::GetDistinctId() const
 {
-  return DistinctId;
+  return FString();
 }
 
 FString FNuxieNoopBridge::GetAnonymousId() const
 {
-  return AnonymousId;
+  return FString();
 }
 
 bool FNuxieNoopBridge::IsIdentified() const
 {
-  return !DistinctId.IsEmpty() && DistinctId != AnonymousId;
+  return false;
 }
 
-bool FNuxieNoopBridge::StartTrigger(
-  const FString& RequestId,
+void FNuxieNoopBridge::Trigger(
   const FString& EventName,
-  const FNuxieTriggerOptions& Options,
-  FNuxieError& OutError)
+  const TMap<FString, FNuxieScalarValue>& Properties)
 {
-  if (Listener != nullptr)
-  {
-    FNuxieTriggerUpdate Update;
-    Update.Kind = ENuxieTriggerUpdateKind::Error;
-    Update.Error = FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("No mobile bridge is available."));
-    Update.TimestampMs = FDateTime::UtcNow().ToUnixTimestamp() * 1000;
-    Update.bIsTerminal = true;
-    AsyncTask(ENamedThreads::GameThread, [Listener = Listener, RequestId, Update]()
-    {
-      Listener->OnTriggerUpdate(RequestId, Update);
-    });
-  }
-
-  OutError = UnsupportedError();
-  return false;
 }
 
-bool FNuxieNoopBridge::CancelTrigger(const FString& RequestId, FNuxieError& OutError)
+void FNuxieNoopBridge::DismissAsync(
+  FSimpleDelegate OnSuccess,
+  FNuxieErrorCallback OnError)
 {
-  OutError = UnsupportedError();
-  return false;
+  FailAsync(MoveTemp(OnError));
 }
 
-bool FNuxieNoopBridge::ShowFlow(const FString& FlowId, FNuxieError& OutError)
+void FNuxieNoopBridge::SetLocaleIdentifierAsync(
+  const FString& LocaleIdentifier,
+  FSimpleDelegate OnSuccess,
+  FNuxieErrorCallback OnError)
 {
-  OutError = UnsupportedError();
-  return false;
-}
-
-void FNuxieNoopBridge::RefreshProfileAsync(FNuxieProfileSuccessCallback OnSuccess, FNuxieErrorCallback OnError)
-{
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
+  FailAsync(MoveTemp(OnError));
 }
 
 void FNuxieNoopBridge::HasFeatureAsync(
   const FString& FeatureId,
-  int32 RequiredBalance,
+  double RequiredBalance,
   const FString& EntityId,
+  ENuxieFeatureCheckPolicy Policy,
   FNuxieFeatureAccessSuccessCallback OnSuccess,
   FNuxieErrorCallback OnError)
 {
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
+  FailAsync(MoveTemp(OnError));
 }
 
-void FNuxieNoopBridge::CheckFeatureAsync(
+void FNuxieNoopBridge::UseFeature(
   const FString& FeatureId,
-  int32 RequiredBalance,
+  double Amount,
   const FString& EntityId,
-  bool bForceRefresh,
-  FNuxieFeatureCheckSuccessCallback OnSuccess,
+  const TMap<FString, FNuxieScalarValue>& Metadata)
+{
+}
+
+void FNuxieNoopBridge::UseFeatureAndWaitAsync(
+  const FString& FeatureId,
+  double Amount,
+  const FString& EntityId,
+  bool bSetUsage,
+  const TMap<FString, FNuxieScalarValue>& Metadata,
+  FNuxieFeatureUsageSuccessCallback OnSuccess,
   FNuxieErrorCallback OnError)
 {
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
+  FailAsync(MoveTemp(OnError));
 }
 
-bool FNuxieNoopBridge::UseFeature(
-  const FString& FeatureId,
-  float Amount,
-  const FString& EntityId,
-  const TMap<FString, FString>& Metadata,
+bool FNuxieNoopBridge::CompletePurchase(
+  const FString& RequestId,
+  const FNuxiePurchaseResult& Result,
   FNuxieError& OutError)
 {
   OutError = UnsupportedError();
   return false;
 }
 
-void FNuxieNoopBridge::UseFeatureAndWaitAsync(
-  const FString& FeatureId,
-  float Amount,
-  const FString& EntityId,
-  bool bSetUsage,
-  const TMap<FString, FString>& Metadata,
-  FNuxieFeatureUsageSuccessCallback OnSuccess,
-  FNuxieErrorCallback OnError)
-{
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
-}
-
-void FNuxieNoopBridge::FlushEventsAsync(FNuxieBoolSuccessCallback OnSuccess, FNuxieErrorCallback OnError)
-{
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
-}
-
-void FNuxieNoopBridge::GetQueuedEventCountAsync(FNuxieIntSuccessCallback OnSuccess, FNuxieErrorCallback OnError)
-{
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
-}
-
-void FNuxieNoopBridge::PauseEventQueueAsync(FSimpleDelegate OnSuccess, FNuxieErrorCallback OnError)
-{
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
-}
-
-void FNuxieNoopBridge::ResumeEventQueueAsync(FSimpleDelegate OnSuccess, FNuxieErrorCallback OnError)
-{
-  AsyncTask(ENamedThreads::GameThread, [OnError]()
-  {
-    OnError(UnsupportedError());
-  });
-}
-
-bool FNuxieNoopBridge::CompletePurchase(const FString& RequestId, const FNuxiePurchaseResult& Result, FNuxieError& OutError)
-{
-  OutError = UnsupportedError();
-  return false;
-}
-
-bool FNuxieNoopBridge::CompleteRestore(const FString& RequestId, const FNuxieRestoreResult& Result, FNuxieError& OutError)
+bool FNuxieNoopBridge::CompleteRestore(
+  const FString& RequestId,
+  const FNuxieRestoreResult& Result,
+  FNuxieError& OutError)
 {
   OutError = UnsupportedError();
   return false;

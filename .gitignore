@@ -11,6 +11,10 @@ Saved/
 # macOS
 .DS_Store
 
-# Android bridge tests
+# Native bridge builds
 ThirdParty/Android/.gradle/
 ThirdParty/Android/build/
+ThirdParty/Android/bridge/build/
+ThirdParty/IOS/.build/
+ThirdParty/IOS/.swiftpm/
+ThirdParty/IOS/Package.resolved

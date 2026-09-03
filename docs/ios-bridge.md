@@ -1,28 +1,21 @@
-# iOS Bridge
+# iOS bridge
 
-## Components
+The iOS binding is a Swift dynamic framework compiled against Nuxie iOS 0.1.0.
+It exports a small C ABI:
 
-- Objective-C++ bridge: `Source/Nuxie/Private/Platform/IOS/NuxieIOSBridge.mm`
+    char *NuxieUnreal_Invoke(const char *method, const char *arguments_json);
+    char *NuxieUnreal_PopPendingEvent(void);
+    void NuxieUnreal_FreeCString(char *value);
 
-## Design
+The Swift implementation calls the typed NuxieSDK.shared surface directly. It
+uses the same private response and event envelope as Android. The framework
+contains Nuxie_Nuxie.bundle, including the privacy manifest and timezone data
+required by the SDK.
 
-The iOS bridge uses dynamic Objective-C runtime lookup (`NSClassFromString`, selector dispatch) so it can adapt to different linked SDK symbol layouts without hard compile-time binding to generated Swift headers.
+Build the embedded framework archive with:
 
-Implemented runtime operations:
+    cd ThirdParty/IOS
+    ./scripts/build-framework.sh
 
-- setup/configure
-- identify/reset
-- distinct/anonymous ID access
-- trigger start/cancel
-- flow show
-- profile refresh (async completion bridging)
-
-Currently guarded with explicit `NATIVE_UNAVAILABLE` for operations where selectors are unavailable at runtime.
-
-## Notes
-
-Because the bridge is dynamic, final runtime behavior depends on linked `Nuxie` iOS SDK symbol availability and selector naming in the consuming app build.
-
-If flows use `request_tracking` or `request_permission(...)`, the consuming iOS
-app must also include the matching `Info.plist` usage-description keys. The
-bridge does not generate those entries.
+The build runs with library evolution and complete concurrency checking.
+Nuxie.Build.cs embeds the prepared framework on iOS.

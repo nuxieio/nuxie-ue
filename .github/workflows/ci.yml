@@ -13,8 +13,8 @@ jobs:
       - name: Validate plugin descriptor
         run: test -f Nuxie.uplugin
 
-      - name: Run trigger contract fixtures
-        run: node ./scripts/test-trigger-contract.mjs
+      - name: Run Journey contract checks
+        run: node ./scripts/test-contract.mjs
 
-      - name: Run Android bridge JVM tests
+      - name: Verify the compiled Android bridge
         run: ./scripts/test-android-bridge.sh
