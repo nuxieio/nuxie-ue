@@ -1,71 +1,61 @@
-# Getting Started
+# Getting started
 
-## 1. Install plugin
+## 1. Add the plugin
 
-Place the plugin at:
+Place this repository at Plugins/Nuxie in the game project. Enable Nuxie and
+NuxieBlueprint, then regenerate project files.
 
-```text
-<YourProject>/Plugins/Nuxie
-```
+Android packaging requires Maven Central access for the exact
+ai.nuxie:nuxie-android:0.1.0 dependency. iOS packaging uses the prepared
+embedded framework in ThirdParty/IOS/lib.
 
-## 2. Enable plugin
+## 2. Configure once
 
-In Unreal Editor:
+Resolve UNuxieSubsystem from the game instance and call Configure. Use
+production or development, choose a log level, and optionally provide a locale
+and purchase controller.
 
-1. Open `Edit > Plugins`.
-2. Search for `Nuxie`.
-3. Enable the plugin.
-4. Restart editor.
+Identity calls are cache-first:
 
-## 3. Configure SDK early
+    FNuxieError Error;
+    Nuxie->Identify(TEXT("player_123"), {}, {}, Error);
+    Nuxie->Reset(false, Error);
 
-Use `UGameInstance` startup path or an early gameplay subsystem to call `UNuxieSubsystem::Configure`.
+Profile synchronization happens at native lifecycle sync points.
 
-## 4. Set identity
+## 3. Record events
 
-Call `Identify` when you know the authenticated player ID.
+    Nuxie->Trigger(TEXT("level_completed"), {});
 
-## 5. Trigger events
+Trigger returns no result and exposes no operation handle. A matching Journey
+continues in the native SDK, including experiment selection and presentation.
 
-Use `StartTrigger` for progressive updates, then observe `OnTriggerUpdate` or Blueprint async action nodes.
+## 4. Receive runtime output
 
-## 6. Handle purchase/restore requests
+Bind to:
 
-Attach `INuxiePurchaseController` to `UNuxieSubsystem` using `SetPurchaseController`.
+- OnFeatureAccessChanged
+- OnActivity
+- OnAppAction
+- OnPurchaseRequest
+- OnRestoreRequest
 
-When purchase/restore requests arrive, return `FNuxiePurchaseResult` / `FNuxieRestoreResult` for native runtime continuation.
+Activity and App Action properties use FNuxieScalarValue, preserving strings,
+integers, numbers, and booleans.
 
-## 7. Validate on device
+## 5. Check and consume Features
 
-- Ensure UE has Android/iOS platform components installed (Epic Games Launcher -> Unreal Engine -> `...` -> `Options`).
-- Android: verify flow presentation and callbacks on a physical/emulator device.
-- iOS: verify linked `Nuxie` SDK symbols resolve and setup succeeds.
+Use Has Nuxie Feature with either cache-first or remote policy. Use UseFeature
+for fire-and-forget usage, or Use Nuxie Feature And Wait when the authoritative
+post-usage access snapshot is required.
 
-## 8. Native permission action setup
+## 6. Commerce
 
-`showFlow(...)` picks up native permission actions automatically from the linked
-SDKs. No new Unreal API is required, but your generated mobile projects still
-need native declarations when those actions are authored in flows.
+Set bUsePurchaseController during configuration and provide an
+INuxiePurchaseController. The plugin forwards canonical purchase and restore
+requests, waits for the controller result, and completes the native request.
 
-iOS keys:
+## 7. Shut down
 
-- `NSUserTrackingUsageDescription` for `request_tracking`
-- `NSCameraUsageDescription` for `request_permission("camera")`
-- `NSMicrophoneUsageDescription` for `request_permission("microphone")`
-- `NSPhotoLibraryUsageDescription` for `request_permission("photos")`
-- `NSLocationWhenInUseUsageDescription` for
-  `request_permission("location")`
-
-Android manifest permissions:
-
-- `android.permission.POST_NOTIFICATIONS`
-- `android.permission.CAMERA`
-- `android.permission.RECORD_AUDIO`
-- `android.permission.READ_MEDIA_IMAGES` on Android 13+ and
-  `android.permission.READ_EXTERNAL_STORAGE` on Android 12 and below
-- `android.permission.ACCESS_COARSE_LOCATION` and/or
-  `android.permission.ACCESS_FINE_LOCATION`
-
-`request_tracking` is iOS-only. `request_notifications` uses the native Android
-notification permission path provided by `nuxie-android`, but Android 13+ apps
-still need `POST_NOTIFICATIONS` in the host manifest.
+Use ShutdownAsync from C++, or Shutdown Nuxie in Blueprint, and wait for its
+completion before reconfiguring the SDK.

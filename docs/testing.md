@@ -1,95 +1,30 @@
 # Testing
 
-## Local tests
+Run the portable and packaged-artifact checks from the repository root:
 
-### Trigger contract fixtures
+    node scripts/test-contract.mjs
+    ./scripts/test-android-bridge.sh
 
-```bash
-node ./scripts/test-trigger-contract.mjs
-```
+To compile the Kotlin adapter against a local exact 0.1.0 Maven fixture:
 
-This validates terminal-state semantics against fixture cases in `tests/fixtures/trigger_terminal_cases.json`.
+    NUXIE_ANDROID_MAVEN_REPO=/path/to/maven-repo \
+      ./scripts/test-android-bridge.sh
 
-### Android bridge JVM tests
+That runs Android unit tests, lint, a release AAR build, and verifies the
+exported JVM signatures.
 
-```bash
-./scripts/test-android-bridge.sh
-```
+To compile and test the Swift bridge:
 
-This compiles and runs:
+    cd ThirdParty/IOS
+    xcodebuild test \
+      -scheme NuxieUnrealBridge \
+      -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+      SWIFT_STRICT_CONCURRENCY=complete
+    ./scripts/build-framework.sh
 
-- `ThirdParty/Android/src/io/nuxie/unreal/NuxieBridge.java`
-- `ThirdParty/Android/test/io/nuxie/unreal/NuxieBridgeContractTest.java`
+The framework build uses library evolution and complete concurrency checking,
+copies Nuxie_Nuxie.bundle, and creates the archive consumed by Unreal.
 
-Covers:
-
-- trigger terminal rules
-- trigger event emission behavior
-- purchase/restore completion and timeout behavior
-
-## CI
-
-GitHub Actions workflow: `.github/workflows/ci.yml`
-
-Runs:
-
-1. plugin descriptor sanity check
-2. trigger contract fixture tests
-3. Android bridge JVM tests
-
-## Unreal compile/package validation
-
-Use Unreal Automation Tool to build and package the plugin from source.
-
-```bash
-UE_ROOT="/Users/Shared/Epic Games/UE_5.7"
-"$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildPlugin \
-  -Plugin="$(pwd)/Nuxie.uplugin" \
-  -Package="/tmp/nuxie-ue-package" \
-  -TargetPlatforms=Android+IOS \
-  -Rocket -StrictIncludes
-```
-
-Expected logs include both:
-
-- `Building plugin for host platforms: Mac`
-- `Building plugin for target platforms: Android, IOS`
-
-### If Android/iOS are skipped
-
-`BuildPlugin` skips targets when UE marks them invalid for code projects. Force direct diagnostics with UBT:
-
-```bash
-UE_ROOT="/Users/Shared/Epic Games/UE_5.7"
-DOTNET="$UE_ROOT/Engine/Binaries/ThirdParty/DotNet/8.0.412/mac-arm64/dotnet"
-UBT="$UE_ROOT/Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll"
-HOST="/tmp/nuxie-ue-package/HostProject/HostProject.uproject"
-PLUGIN="/tmp/nuxie-ue-package/HostProject/Plugins/Nuxie/Nuxie.uplugin"
-
-"$DOTNET" "$UBT" UnrealGame Android Development -Project="$HOST" -plugin="$PLUGIN" -noubtmakefiles -manifest="/tmp/Manifest-UnrealGame-Android-Development.xml" -nohotreload
-"$DOTNET" "$UBT" UnrealGame IOS Development -Project="$HOST" -plugin="$PLUGIN" -noubtmakefiles -manifest="/tmp/Manifest-UnrealGame-IOS-Development.xml" -nohotreload
-```
-
-Common failure output:
-
-- `Missing files required to build Android targets. Enable Android as an optional download component in the Epic Games Launcher.`
-- `Missing files required to build IOS targets. Enable IOS as an optional download component in the Epic Games Launcher.`
-
-Fix by installing Android/iOS UE platform components in Epic Games Launcher for your engine version, then rerun the commands above.
-
-### If Android build reports invalid SDK
-
-If Android compile fails with:
-
-- `Unable to find valid SDK(s) for Android`
-- `Platform Android is not a valid platform to build`
-
-install UE-required Android SDK/NDK components (`r27c`) and register them with UE:
-
-```bash
-UE_ROOT="/Users/Shared/Epic Games/UE_5.7"
-"$UE_ROOT/Engine/Extras/Android/SetupAndroid.command" \
-  android-34 35.0.1 3.22.1 27.2.12479018 -noninteractive
-```
-
-This script expects Android Studio to be installed (default path: `~/Applications/Android Studio.app`) and the SDK root at `~/Library/Android/sdk`.
+An Unreal Engine installation is still required for a full packaged game
+smoke test. The native compile gates catch SDK API drift without relying on
+runtime symbol lookup.

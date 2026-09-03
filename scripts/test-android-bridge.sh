@@ -1,15 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC_DIR="$ROOT/ThirdParty/Android/src"
-TEST_DIR="$ROOT/ThirdParty/Android/test"
-OUT_DIR="$ROOT/ThirdParty/Android/build/jvm-tests"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ANDROID_DIR="$ROOT_DIR/ThirdParty/Android"
+AAR="$ANDROID_DIR/lib/nuxie-unreal-bridge.aar"
 
-mkdir -p "$OUT_DIR"
+if [[ ! -f "$AAR" ]]; then
+  echo "Missing prepared Android bridge AAR: $AAR" >&2
+  exit 1
+fi
 
-javac -source 8 -target 8 -d "$OUT_DIR" \
-  "$SRC_DIR/io/nuxie/unreal/NuxieBridge.java" \
-  "$TEST_DIR/io/nuxie/unreal/NuxieBridgeContractTest.java"
+if [[ -n "${NUXIE_ANDROID_MAVEN_REPO:-}" ]]; then
+  (
+    cd "$ANDROID_DIR"
+    ./gradlew :bridge:testDebugUnitTest :bridge:lint :bridge:prepareBridgeAar
+  )
+fi
 
-java -cp "$OUT_DIR" io.nuxie.unreal.NuxieBridgeContractTest
+python3 - "$AAR" <<'PY'
+import pathlib
+import subprocess
+import sys
+import tempfile
+import zipfile
+
+aar = pathlib.Path(sys.argv[1])
+with tempfile.TemporaryDirectory(prefix="nuxie-unreal-aar-") as directory:
+    classes = pathlib.Path(directory) / "classes.jar"
+    with zipfile.ZipFile(aar) as archive:
+        classes.write_bytes(archive.read("classes.jar"))
+    output = subprocess.check_output(
+        [
+            "javap",
+            "-classpath",
+            str(classes),
+            "ai.nuxie.unreal.NuxieUnrealBridge",
+        ],
+        text=True,
+    )
+
+required = (
+    "invoke(android.app.Activity, java.lang.String, java.lang.String)",
+    "popPendingEvent()",
+)
+for signature in required:
+    if signature not in output:
+        raise SystemExit(f"missing Android bridge signature: {signature}")
+
+for forbidden in ("java.lang.reflect", "startTrigger", "cancelTrigger", "showFlow"):
+    if forbidden in output:
+        raise SystemExit(f"retired Android bridge symbol remains: {forbidden}")
+
+print("Android bridge artifact contract passed")
+PY

@@ -1,42 +1,24 @@
-# Android Bridge
+# Android bridge
 
-## Components
+The Android binding is a compiled Kotlin AAR in the package ai.nuxie.unreal.
+It depends exactly on:
 
-- C++ JNI bridge: `Source/Nuxie/Private/Platform/Android/NuxieAndroidBridge.cpp`
-- Java bridge core: `ThirdParty/Android/src/io/nuxie/unreal/NuxieBridge.java`
-- APL integration: `ThirdParty/Android/Nuxie_APL.xml`
+    ai.nuxie:nuxie-android:0.1.0
 
-## Design
+Unreal C++ passes GameActivity directly to
+NuxieUnrealBridge.invoke(Activity, method, argumentsJson). The adapter calls
+the typed Kotlin SDK surface and returns one JSON response. Public native events
+are written to a concurrent queue and consumed through popPendingEvent().
 
-The bridge uses:
+The adapter directly compiles setup, identity, event recording, dismiss,
+locale, policy-aware Feature access, Feature usage, activity, App Actions, and
+commerce. SDK method lookup by string is not used.
 
-1. JNI method calls from C++ into static Java methods.
-2. A reflective Java runtime adapter (`ReflectiveRuntime`) to call Nuxie Android SDK APIs.
-3. Native callback methods from Java to C++ for trigger updates and lifecycle events.
+Build the prepared AAR with:
 
-## Payload encoding
+    cd ThirdParty/Android
+    NUXIE_ANDROID_MAVEN_REPO=/path/to/maven-repo \
+      ./gradlew :bridge:testDebugUnitTest :bridge:lint :bridge:prepareBridgeAar
 
-C++ <-> Java payloads use URL-encoded key-value maps (`KvCodec`) for deterministic, dependency-free serialization.
-
-## Purchase/restore continuation
-
-Java bridge holds pending completion futures keyed by `request_id` and resolves them via:
-
-- `completePurchase(requestId, payload)`
-- `completeRestore(requestId, payload)`
-
-Default timeout: 60 seconds.
-
-## APL behavior
-
-`Nuxie_APL.xml` performs:
-
-- Android manifest metadata insertion (`NUXIE_API_KEY`)
-- Java source copy into build directory
-- Gradle dependency insertion for `io.nuxie:nuxie-android`
-- proguard keep rules for Nuxie namespaces
-
-If flows use `request_permission(...)`, the consuming Android app must still
-declare the matching dangerous permissions in its manifest. The bridge itself
-does not inject camera, microphone, photo-library, or location permissions for
-you.
+The APL copies the resulting AAR into the Unreal Android build and resolves the
+native SDK from Maven.

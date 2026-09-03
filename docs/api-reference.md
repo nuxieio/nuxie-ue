@@ -1,65 +1,58 @@
-# API Reference
+# API reference
 
-## Core subsystem
+## Configuration and identity
 
-`UNuxieSubsystem` (`UGameInstanceSubsystem`) is the runtime entrypoint.
+- bool Configure(const FNuxieConfigureOptions&, FNuxieError&)
+- void ShutdownAsync(success callback, error callback)
+- bool Identify(const FString&, scalar user properties, scalar set-once properties, FNuxieError&)
+- bool Reset(bool bKeepAnonymousId, FNuxieError&)
+- FString GetDistinctId()
+- FString GetAnonymousId()
+- bool IsIdentified()
 
-### Configuration and identity
+FNuxieConfigureOptions contains the public API key, environment, log level,
+iOS console and redaction controls, locale, purchase handling mode, iOS Test
+Store switch, and purchase-controller switch.
 
-- `bool Configure(const FNuxieConfigureOptions&, FNuxieError&)`
-- `bool Shutdown(FNuxieError&)`
-- `bool Identify(const FString&, const TMap<FString, FString>&, const TMap<FString, FString>&, FNuxieError&)`
-- `bool Reset(bool bKeepAnonymousId, FNuxieError&)`
-- `FString GetDistinctId() const`
-- `FString GetAnonymousId() const`
-- `bool IsIdentified() const`
+## Journeys
 
-### Trigger and flow
+- void Trigger(const FString& EventName, scalar properties)
+- void DismissAsync(...)
+- void SetLocaleIdentifierAsync(...)
 
-- `bool StartTrigger(const FString& EventName, const FNuxieTriggerOptions&, FString& OutRequestId, FNuxieError&)`
-- `bool CancelTrigger(const FString& RequestId, FNuxieError&)`
-- `bool ShowFlow(const FString& FlowId, FNuxieError&)`
+Trigger records an event and returns immediately. It has no result, handle,
+cancellation, or identity mutation.
 
-### Features and usage
+## Features
 
-- `bool UseFeature(const FString& FeatureId, float Amount, const FString& EntityId, const TMap<FString, FString>& Metadata, FNuxieError&)`
-- `void HasFeatureAsync(...)`
-- `void CheckFeatureAsync(...)`
-- `void UseFeatureAndWaitAsync(...)`
+- void HasFeatureAsync(feature, double required balance, entity, policy, callbacks)
+- void UseFeature(feature, double amount, entity, scalar metadata)
+- void UseFeatureAndWaitAsync(feature, double amount, entity, set usage, metadata, callbacks)
 
-### Profile and queue
+FNuxieFeatureUsageResult contains optional usage details and optional
+AuthoritativeAccess.
 
-- `void RefreshProfileAsync(...)`
-- `void FlushEventsAsync(...)`
-- `void GetQueuedEventCountAsync(...)`
-- `void PauseEventQueueAsync(...)`
-- `void ResumeEventQueueAsync(...)`
+## Events
 
-### Purchase completion
+- OnFeatureAccessChanged
+- OnActivity
+- OnAppAction
+- OnPurchaseRequest
+- OnRestoreRequest
 
-- `bool CompletePurchase(const FString& RequestId, const FNuxiePurchaseResult&, FNuxieError&)`
-- `bool CompleteRestore(const FString& RequestId, const FNuxieRestoreResult&, FNuxieError&)`
+## Commerce
 
-## Delegates/events
+- void SetPurchaseController(...)
+- bool CompletePurchase(...)
+- bool CompleteRestore(...)
 
-Blueprint-assignable events:
-
-- `OnTriggerUpdate`
-- `OnFeatureAccessChanged`
-- `OnPurchaseRequest`
-- `OnRestoreRequest`
-- `OnFlowPresented`
-- `OnFlowDismissed`
-
-Native multicast event:
-
-- `OnTriggerUpdateNative`
+Purchase result values are Purchased, Cancelled, Pending, and Failed. Restore
+values are Restored, NoPurchases, and Failed.
 
 ## Blueprint async actions
 
-- `UNuxieTriggerAsyncAction::StartNuxieTrigger(...)`
-- `UNuxieCheckFeatureAsyncAction::CheckNuxieFeature(...)`
-
-## Core types
-
-See `Source/Nuxie/Public/NuxieTypes.h` for full structs/enums.
+- UNuxieShutdownAsyncAction::ShutdownNuxie
+- UNuxieHasFeatureAsyncAction::HasNuxieFeature
+- UNuxieUseFeatureAsyncAction::UseNuxieFeatureAndWait
+- UNuxieDismissAsyncAction::DismissNuxie
+- UNuxieSetLocaleAsyncAction::SetNuxieLocale

@@ -1,8 +1,6 @@
 #include "NuxieSubsystem.h"
 
 #include "Async/Async.h"
-#include "Engine/Engine.h"
-#include "Misc/Guid.h"
 #include "NuxiePlatformBridge.h"
 
 class FNuxieBridgeListener final : public INuxiePlatformBridgeListener
@@ -13,126 +11,85 @@ public:
   {
   }
 
-  virtual void OnTriggerUpdate(const FString& RequestId, const FNuxieTriggerUpdate& Update) override
+  virtual void OnFeatureAccessChanged(const FNuxieFeatureAccessChanged& Event) override
   {
-    if (!Owner.IsValid())
+    Dispatch([Event](UNuxieSubsystem& Target)
     {
-      return;
-    }
-
-    AsyncTask(ENamedThreads::GameThread, [Owner = Owner, RequestId, Update]()
-    {
-      if (!Owner.IsValid())
-      {
-        return;
-      }
-      Owner->OnTriggerUpdateNative.Broadcast(RequestId, Update);
-      Owner->OnTriggerUpdate.Broadcast(RequestId, Update);
+      Target.OnFeatureAccessChanged.Broadcast(Event);
     });
   }
 
-  virtual void OnFeatureAccessChanged(const FString& FeatureId, const FNuxieFeatureAccess& Previous, const FNuxieFeatureAccess& Current) override
+  virtual void OnActivity(const FNuxieActivityInfo& Activity) override
   {
-    if (!Owner.IsValid())
+    Dispatch([Activity](UNuxieSubsystem& Target)
     {
-      return;
-    }
+      Target.OnActivity.Broadcast(Activity);
+    });
+  }
 
-    AsyncTask(ENamedThreads::GameThread, [Owner = Owner, FeatureId, Previous, Current]()
+  virtual void OnAppAction(const FNuxieAppAction& Action) override
+  {
+    Dispatch([Action](UNuxieSubsystem& Target)
     {
-      if (!Owner.IsValid())
-      {
-        return;
-      }
-      Owner->OnFeatureAccessChanged.Broadcast(FeatureId, Previous, Current);
+      Target.OnAppAction.Broadcast(Action);
     });
   }
 
   virtual void OnPurchaseRequest(const FNuxiePurchaseRequest& Request) override
   {
-    if (!Owner.IsValid())
+    Dispatch([Request](UNuxieSubsystem& Target)
     {
-      return;
-    }
-
-    AsyncTask(ENamedThreads::GameThread, [Owner = Owner, Request]()
-    {
-      if (!Owner.IsValid())
+      Target.OnPurchaseRequest.Broadcast(Request);
+      if (Target.PurchaseController.GetObject() == nullptr)
       {
         return;
       }
 
-      Owner->OnPurchaseRequest.Broadcast(Request);
-
-      if (Owner->PurchaseController.GetObject() != nullptr)
-      {
-        FNuxiePurchaseResult Result = INuxiePurchaseController::Execute_OnPurchaseRequested(Owner->PurchaseController.GetObject(), Request);
-        FNuxieError CompletionError;
-        Owner->CompletePurchase(Request.RequestId, Result, CompletionError);
-      }
+      const FNuxiePurchaseResult Result =
+        INuxiePurchaseController::Execute_OnPurchaseRequested(
+          Target.PurchaseController.GetObject(),
+          Request);
+      FNuxieError IgnoreError;
+      Target.CompletePurchase(Request.RequestId, Result, IgnoreError);
     });
   }
 
   virtual void OnRestoreRequest(const FNuxieRestoreRequest& Request) override
   {
-    if (!Owner.IsValid())
+    Dispatch([Request](UNuxieSubsystem& Target)
     {
-      return;
-    }
-
-    AsyncTask(ENamedThreads::GameThread, [Owner = Owner, Request]()
-    {
-      if (!Owner.IsValid())
+      Target.OnRestoreRequest.Broadcast(Request);
+      if (Target.PurchaseController.GetObject() == nullptr)
       {
         return;
       }
 
-      Owner->OnRestoreRequest.Broadcast(Request);
-
-      if (Owner->PurchaseController.GetObject() != nullptr)
-      {
-        FNuxieRestoreResult Result = INuxiePurchaseController::Execute_OnRestoreRequested(Owner->PurchaseController.GetObject(), Request);
-        FNuxieError CompletionError;
-        Owner->CompleteRestore(Request.RequestId, Result, CompletionError);
-      }
-    });
-  }
-
-  virtual void OnFlowPresented(const FString& FlowId) override
-  {
-    if (!Owner.IsValid())
-    {
-      return;
-    }
-
-    AsyncTask(ENamedThreads::GameThread, [Owner = Owner, FlowId]()
-    {
-      if (!Owner.IsValid())
-      {
-        return;
-      }
-      Owner->OnFlowPresented.Broadcast(FlowId);
-    });
-  }
-
-  virtual void OnFlowDismissed(const FString& FlowId) override
-  {
-    if (!Owner.IsValid())
-    {
-      return;
-    }
-
-    AsyncTask(ENamedThreads::GameThread, [Owner = Owner, FlowId]()
-    {
-      if (!Owner.IsValid())
-      {
-        return;
-      }
-      Owner->OnFlowDismissed.Broadcast(FlowId);
+      const FNuxieRestoreResult Result =
+        INuxiePurchaseController::Execute_OnRestoreRequested(
+          Target.PurchaseController.GetObject(),
+          Request);
+      FNuxieError IgnoreError;
+      Target.CompleteRestore(Request.RequestId, Result, IgnoreError);
     });
   }
 
 private:
+  void Dispatch(TFunction<void(UNuxieSubsystem&)> Work)
+  {
+    if (!Owner.IsValid())
+    {
+      return;
+    }
+
+    AsyncTask(ENamedThreads::GameThread, [Owner = Owner, Work = MoveTemp(Work)]() mutable
+    {
+      if (Owner.IsValid())
+      {
+        Work(*Owner.Get());
+      }
+    });
+  }
+
   TWeakObjectPtr<UNuxieSubsystem> Owner;
 };
 
@@ -141,7 +98,6 @@ UNuxieSubsystem::~UNuxieSubsystem() = default;
 void UNuxieSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
   Super::Initialize(Collection);
-
   Bridge = CreateNuxiePlatformBridge();
   BridgeListener = new FNuxieBridgeListener(this);
   Bridge->SetListener(BridgeListener);
@@ -151,180 +107,149 @@ void UNuxieSubsystem::Deinitialize()
 {
   if (Bridge != nullptr)
   {
-    FNuxieError IgnoreError;
-    Bridge->Shutdown(IgnoreError);
     Bridge->SetListener(nullptr);
+    if (bIsConfigured)
+    {
+      Bridge->ShutdownAsync(
+        FSimpleDelegate(),
+        [](const FNuxieError& Error)
+        {
+          UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("Nuxie shutdown failed during subsystem teardown: %s"),
+            *Error.Message);
+        });
+    }
     Bridge.Reset();
   }
 
-  if (BridgeListener != nullptr)
-  {
-    delete BridgeListener;
-    BridgeListener = nullptr;
-  }
-
+  delete BridgeListener;
+  BridgeListener = nullptr;
   bIsConfigured = false;
   PurchaseController = nullptr;
-
   Super::Deinitialize();
 }
 
 bool UNuxieSubsystem::EnsureBridge(FNuxieError& OutError) const
 {
+  if (Bridge != nullptr)
+  {
+    return true;
+  }
+
+  OutError = FNuxieError::Make(
+    TEXT("NATIVE_UNAVAILABLE"),
+    TEXT("Nuxie platform bridge is unavailable."));
+  return false;
+}
+
+bool UNuxieSubsystem::Configure(
+  const FNuxieConfigureOptions& Options,
+  FNuxieError& OutError)
+{
+  if (!EnsureBridge(OutError))
+  {
+    return false;
+  }
+
+  bIsConfigured = Bridge->Configure(Options, OutError);
+  return bIsConfigured;
+}
+
+void UNuxieSubsystem::ShutdownAsync(
+  FSimpleDelegate OnSuccess,
+  FNuxieErrorCallback OnError)
+{
+  bIsConfigured = false;
   if (Bridge == nullptr)
   {
-    OutError = FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable."));
-    return false;
-  }
-  return true;
-}
-
-bool UNuxieSubsystem::Configure(const FNuxieConfigureOptions& Options, FNuxieError& OutError)
-{
-  if (!EnsureBridge(OutError))
-  {
-    return false;
+    OnError(FNuxieError::Make(
+      TEXT("NATIVE_UNAVAILABLE"),
+      TEXT("Nuxie platform bridge is unavailable.")));
+    return;
   }
 
-  const bool bSuccess = Bridge->Configure(Options, OutError);
-  bIsConfigured = bSuccess;
-  return bSuccess;
-}
-
-bool UNuxieSubsystem::Shutdown(FNuxieError& OutError)
-{
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  const bool bSuccess = Bridge->Shutdown(OutError);
-  bIsConfigured = false;
-  return bSuccess;
+  Bridge->ShutdownAsync(MoveTemp(OnSuccess), MoveTemp(OnError));
 }
 
 bool UNuxieSubsystem::Identify(
   const FString& DistinctId,
-  const TMap<FString, FString>& UserProperties,
-  const TMap<FString, FString>& UserPropertiesSetOnce,
+  const TMap<FString, FNuxieScalarValue>& UserProperties,
+  const TMap<FString, FNuxieScalarValue>& UserPropertiesSetOnce,
   FNuxieError& OutError)
 {
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  return Bridge->Identify(DistinctId, UserProperties, UserPropertiesSetOnce, OutError);
+  return EnsureBridge(OutError)
+    && Bridge->Identify(
+      DistinctId,
+      UserProperties,
+      UserPropertiesSetOnce,
+      OutError);
 }
 
 bool UNuxieSubsystem::Reset(bool bKeepAnonymousId, FNuxieError& OutError)
 {
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  return Bridge->Reset(bKeepAnonymousId, OutError);
+  return EnsureBridge(OutError)
+    && Bridge->Reset(bKeepAnonymousId, OutError);
 }
 
 FString UNuxieSubsystem::GetDistinctId() const
 {
-  if (Bridge == nullptr)
-  {
-    return FString();
-  }
-  return Bridge->GetDistinctId();
+  return Bridge != nullptr ? Bridge->GetDistinctId() : FString();
 }
 
 FString UNuxieSubsystem::GetAnonymousId() const
 {
-  if (Bridge == nullptr)
-  {
-    return FString();
-  }
-  return Bridge->GetAnonymousId();
+  return Bridge != nullptr ? Bridge->GetAnonymousId() : FString();
 }
 
 bool UNuxieSubsystem::IsIdentified() const
 {
-  if (Bridge == nullptr)
-  {
-    return false;
-  }
-  return Bridge->IsIdentified();
+  return Bridge != nullptr && Bridge->IsIdentified();
 }
 
-bool UNuxieSubsystem::StartTrigger(
+void UNuxieSubsystem::Trigger(
   const FString& EventName,
-  const FNuxieTriggerOptions& Options,
-  FString& OutRequestId,
-  FNuxieError& OutError)
+  const TMap<FString, FNuxieScalarValue>& Properties)
 {
-  if (!EnsureBridge(OutError))
+  if (Bridge != nullptr)
   {
-    return false;
+    Bridge->Trigger(EventName, Properties);
   }
-
-  OutRequestId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
-  return Bridge->StartTrigger(OutRequestId, EventName, Options, OutError);
 }
 
-bool UNuxieSubsystem::CancelTrigger(const FString& RequestId, FNuxieError& OutError)
-{
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  return Bridge->CancelTrigger(RequestId, OutError);
-}
-
-bool UNuxieSubsystem::ShowFlow(const FString& FlowId, FNuxieError& OutError)
-{
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  return Bridge->ShowFlow(FlowId, OutError);
-}
-
-bool UNuxieSubsystem::UseFeature(
+void UNuxieSubsystem::UseFeature(
   const FString& FeatureId,
-  float Amount,
+  double Amount,
   const FString& EntityId,
-  const TMap<FString, FString>& Metadata,
+  const TMap<FString, FNuxieScalarValue>& Metadata)
+{
+  if (Bridge != nullptr)
+  {
+    Bridge->UseFeature(FeatureId, Amount, EntityId, Metadata);
+  }
+}
+
+bool UNuxieSubsystem::CompletePurchase(
+  const FString& RequestId,
+  const FNuxiePurchaseResult& Result,
   FNuxieError& OutError)
 {
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  return Bridge->UseFeature(FeatureId, Amount, EntityId, Metadata, OutError);
+  return EnsureBridge(OutError)
+    && Bridge->CompletePurchase(RequestId, Result, OutError);
 }
 
-bool UNuxieSubsystem::CompletePurchase(const FString& RequestId, const FNuxiePurchaseResult& Result, FNuxieError& OutError)
+bool UNuxieSubsystem::CompleteRestore(
+  const FString& RequestId,
+  const FNuxieRestoreResult& Result,
+  FNuxieError& OutError)
 {
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  return Bridge->CompletePurchase(RequestId, Result, OutError);
+  return EnsureBridge(OutError)
+    && Bridge->CompleteRestore(RequestId, Result, OutError);
 }
 
-bool UNuxieSubsystem::CompleteRestore(const FString& RequestId, const FNuxieRestoreResult& Result, FNuxieError& OutError)
-{
-  if (!EnsureBridge(OutError))
-  {
-    return false;
-  }
-
-  return Bridge->CompleteRestore(RequestId, Result, OutError);
-}
-
-void UNuxieSubsystem::SetPurchaseController(const TScriptInterface<INuxiePurchaseController>& Controller)
+void UNuxieSubsystem::SetPurchaseController(
+  const TScriptInterface<INuxiePurchaseController>& Controller)
 {
   PurchaseController = Controller;
 }
@@ -334,108 +259,84 @@ bool UNuxieSubsystem::GetIsConfigured() const
   return bIsConfigured;
 }
 
-void UNuxieSubsystem::RefreshProfileAsync(FNuxieProfileSuccessCallback OnSuccess, FNuxieErrorCallback OnError)
+void UNuxieSubsystem::DismissAsync(
+  FSimpleDelegate OnSuccess,
+  FNuxieErrorCallback OnError)
 {
   if (Bridge == nullptr)
   {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
+    OnError(FNuxieError::Make(
+      TEXT("NATIVE_UNAVAILABLE"),
+      TEXT("Nuxie platform bridge is unavailable.")));
     return;
   }
+  Bridge->DismissAsync(MoveTemp(OnSuccess), MoveTemp(OnError));
+}
 
-  Bridge->RefreshProfileAsync(MoveTemp(OnSuccess), MoveTemp(OnError));
+void UNuxieSubsystem::SetLocaleIdentifierAsync(
+  const FString& LocaleIdentifier,
+  FSimpleDelegate OnSuccess,
+  FNuxieErrorCallback OnError)
+{
+  if (Bridge == nullptr)
+  {
+    OnError(FNuxieError::Make(
+      TEXT("NATIVE_UNAVAILABLE"),
+      TEXT("Nuxie platform bridge is unavailable.")));
+    return;
+  }
+  Bridge->SetLocaleIdentifierAsync(
+    LocaleIdentifier,
+    MoveTemp(OnSuccess),
+    MoveTemp(OnError));
 }
 
 void UNuxieSubsystem::HasFeatureAsync(
   const FString& FeatureId,
-  int32 RequiredBalance,
+  double RequiredBalance,
   const FString& EntityId,
+  ENuxieFeatureCheckPolicy Policy,
   FNuxieFeatureAccessSuccessCallback OnSuccess,
   FNuxieErrorCallback OnError)
 {
   if (Bridge == nullptr)
   {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
+    OnError(FNuxieError::Make(
+      TEXT("NATIVE_UNAVAILABLE"),
+      TEXT("Nuxie platform bridge is unavailable.")));
     return;
   }
-
-  Bridge->HasFeatureAsync(FeatureId, RequiredBalance, EntityId, MoveTemp(OnSuccess), MoveTemp(OnError));
-}
-
-void UNuxieSubsystem::CheckFeatureAsync(
-  const FString& FeatureId,
-  int32 RequiredBalance,
-  const FString& EntityId,
-  bool bForceRefresh,
-  FNuxieFeatureCheckSuccessCallback OnSuccess,
-  FNuxieErrorCallback OnError)
-{
-  if (Bridge == nullptr)
-  {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
-    return;
-  }
-
-  Bridge->CheckFeatureAsync(FeatureId, RequiredBalance, EntityId, bForceRefresh, MoveTemp(OnSuccess), MoveTemp(OnError));
+  Bridge->HasFeatureAsync(
+    FeatureId,
+    RequiredBalance,
+    EntityId,
+    Policy,
+    MoveTemp(OnSuccess),
+    MoveTemp(OnError));
 }
 
 void UNuxieSubsystem::UseFeatureAndWaitAsync(
   const FString& FeatureId,
-  float Amount,
+  double Amount,
   const FString& EntityId,
   bool bSetUsage,
-  const TMap<FString, FString>& Metadata,
+  const TMap<FString, FNuxieScalarValue>& Metadata,
   FNuxieFeatureUsageSuccessCallback OnSuccess,
   FNuxieErrorCallback OnError)
 {
   if (Bridge == nullptr)
   {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
+    OnError(FNuxieError::Make(
+      TEXT("NATIVE_UNAVAILABLE"),
+      TEXT("Nuxie platform bridge is unavailable.")));
     return;
   }
-
-  Bridge->UseFeatureAndWaitAsync(FeatureId, Amount, EntityId, bSetUsage, Metadata, MoveTemp(OnSuccess), MoveTemp(OnError));
-}
-
-void UNuxieSubsystem::FlushEventsAsync(FNuxieBoolSuccessCallback OnSuccess, FNuxieErrorCallback OnError)
-{
-  if (Bridge == nullptr)
-  {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
-    return;
-  }
-
-  Bridge->FlushEventsAsync(MoveTemp(OnSuccess), MoveTemp(OnError));
-}
-
-void UNuxieSubsystem::GetQueuedEventCountAsync(FNuxieIntSuccessCallback OnSuccess, FNuxieErrorCallback OnError)
-{
-  if (Bridge == nullptr)
-  {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
-    return;
-  }
-
-  Bridge->GetQueuedEventCountAsync(MoveTemp(OnSuccess), MoveTemp(OnError));
-}
-
-void UNuxieSubsystem::PauseEventQueueAsync(FSimpleDelegate OnSuccess, FNuxieErrorCallback OnError)
-{
-  if (Bridge == nullptr)
-  {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
-    return;
-  }
-
-  Bridge->PauseEventQueueAsync(MoveTemp(OnSuccess), MoveTemp(OnError));
-}
-
-void UNuxieSubsystem::ResumeEventQueueAsync(FSimpleDelegate OnSuccess, FNuxieErrorCallback OnError)
-{
-  if (Bridge == nullptr)
-  {
-    OnError(FNuxieError::Make(TEXT("NATIVE_UNAVAILABLE"), TEXT("Nuxie platform bridge is unavailable.")));
-    return;
-  }
-
-  Bridge->ResumeEventQueueAsync(MoveTemp(OnSuccess), MoveTemp(OnError));
+  Bridge->UseFeatureAndWaitAsync(
+    FeatureId,
+    Amount,
+    EntityId,
+    bSetUsage,
+    Metadata,
+    MoveTemp(OnSuccess),
+    MoveTemp(OnError));
 }

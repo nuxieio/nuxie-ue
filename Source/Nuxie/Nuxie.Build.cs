@@ -14,9 +14,7 @@ public class Nuxie : ModuleRules
       "CoreUObject",
       "Engine",
       "Projects",
-      "HTTP",
-      "Json",
-      "JsonUtilities"
+      "Json"
     });
 
     PrivateDependencyModuleNames.AddRange(new string[]
@@ -35,7 +33,31 @@ public class Nuxie : ModuleRules
 
     if (Target.Platform == UnrealTargetPlatform.IOS)
     {
-      PublicFrameworks.AddRange(new string[] { "StoreKit", "WebKit" });
+      PrivateDependencyModuleNames.Add("Swift");
+      string PluginPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../"));
+      string FrameworkZip = Path.Combine(
+        PluginPath,
+        "ThirdParty/IOS/lib/NuxieUnrealBridge.embeddedframework.zip"
+      );
+      if (!File.Exists(FrameworkZip))
+      {
+        throw new BuildException(
+          "Missing Nuxie iOS bridge. Run ThirdParty/IOS/scripts/build-framework.sh."
+        );
+      }
+      PublicAdditionalFrameworks.Add(
+        new Framework("NuxieUnrealBridge", FrameworkZip, null, true)
+      );
+      PublicFrameworks.AddRange(new string[]
+      {
+        "CoreGraphics",
+        "Foundation",
+        "Metal",
+        "QuartzCore",
+        "Security",
+        "StoreKit",
+        "WebKit"
+      });
       PublicWeakFrameworks.AddRange(new string[] { "AdSupport" });
     }
   }

@@ -1,21 +1,14 @@
 #include "NuxieBridgeRouter.h"
 
+#include "NuxieJsonBridge.h"
 #include "Platform/NuxieNoopBridge.h"
-
-#if PLATFORM_IOS
-#include "Platform/IOS/NuxieIOSBridge.h"
-#endif
-
-#if PLATFORM_ANDROID
-#include "Platform/Android/NuxieAndroidBridge.h"
-#endif
 
 TUniquePtr<INuxiePlatformBridge> CreateNuxiePlatformBridge()
 {
 #if PLATFORM_IOS
-  return MakeUnique<FNuxieIOSBridge>();
+  return MakeUnique<FNuxieJsonBridge>(CreateNuxieIOSTransport());
 #elif PLATFORM_ANDROID
-  return MakeUnique<FNuxieAndroidBridge>();
+  return MakeUnique<FNuxieJsonBridge>(CreateNuxieAndroidTransport());
 #else
   return MakeUnique<FNuxieNoopBridge>();
 #endif

@@ -1,147 +1,68 @@
-# nuxie-ue
+# Nuxie for Unreal Engine
 
-Native-first Unreal Engine plugin for Nuxie mobile SDKs.
+The Nuxie Unreal plugin exposes native Nuxie Journeys and Features through a
+UGameInstanceSubsystem and Blueprint async actions. Version 0.2.0 is a pre-GA
+hard cut to the current Journey contract and requires Nuxie iOS and Android
+0.1.0.
 
-`nuxie-ue` provides a UE runtime + Blueprint surface over Nuxie iOS/Android SDKs so gameplay code can use a single API for:
+Trigger records an event and returns immediately. The native SDK selects and
+runs any matching Journey. Runtime feedback arrives through typed activity and
+App Action events; there is no trigger result, handle, or cancellation API.
 
-- SDK setup and identity
-- trigger streaming (with terminal semantics parity)
-- flow presentation
-- feature checks and usage
-- event queue controls
-- purchase/restore request bridging
+## Install
 
-## Repository layout
+Copy this repository into your Unreal project's Plugins/Nuxie directory and
+regenerate project files. Release packages include:
 
-- `Nuxie.uplugin`: plugin descriptor.
-- `Source/Nuxie`: core runtime module.
-- `Source/NuxieBlueprint`: Blueprint async action module.
-- `ThirdParty/Android`: Android bridge Java source + APL + JVM tests.
-- `docs/`: integration and API docs.
-- `scripts/`: local test runners.
+- ThirdParty/Android/lib/nuxie-unreal-bridge.aar
+- ThirdParty/IOS/lib/NuxieUnrealBridge.embeddedframework.zip
 
-## Status
+The Android packaging rule resolves ai.nuxie:nuxie-android:0.1.0 exactly. The
+iOS framework contains the Swift bridge, Nuxie SDK, and required resource
+bundle.
 
-- Android bridge: implemented with JNI + reflective runtime adapter and contract tests.
-- iOS bridge: dynamic runtime integration for setup/identity/trigger/showFlow/profile; advanced feature/queue/purchase async methods are currently surfaced with explicit `NATIVE_UNAVAILABLE` errors where selectors are unavailable.
+## Configure
 
-## Requirements
+    #include "NuxieSubsystem.h"
 
-- Unreal Engine `5.4+`
-- UE platform components for both `Android` and `IOS` installed (Epic Games Launcher -> Unreal Engine -> `...` -> `Options`)
-- Android Studio + Android SDK/NDK installed for UE (see `docs/testing.md`, `SetupAndroid.command` flow)
-- Android target for full native bridge behavior
-- iOS target with `Nuxie` iOS SDK linked in app build
-- Java 8+ for local JVM bridge tests
+    UNuxieSubsystem* Nuxie =
+      GetGameInstance()->GetSubsystem<UNuxieSubsystem>();
 
-If your authored flows use native permission actions, the generated mobile
-projects also need the matching `Info.plist` usage descriptions and Android
-manifest permissions.
+    FNuxieConfigureOptions Options;
+    Options.ApiKey = TEXT("NX_PUBLIC_API_KEY");
+    Options.Environment = ENuxieEnvironment::Production;
+    Options.PurchaseHandlingMode = ENuxiePurchaseHandlingMode::Full;
 
-## Installation
+    FNuxieError Error;
+    Nuxie->Configure(Options, Error);
 
-### As monorepo submodule
+## Start a Journey from an event
 
-```bash
-git submodule add git@github.com:nuxieai/nuxie-ue.git packages/nuxie-ue
-```
+    FNuxieScalarValue Source;
+    Source.Type = ENuxieScalarType::String;
+    Source.StringValue = TEXT("inventory");
 
-### In Unreal project
+    TMap<FString, FNuxieScalarValue> Properties;
+    Properties.Add(TEXT("source"), Source);
+    Nuxie->Trigger(TEXT("premium_feature_tapped"), Properties);
 
-1. Copy/link plugin into your UE project's `Plugins/` directory.
-2. Enable `Nuxie` plugin in UE Plugins panel.
-3. Regenerate project files.
-4. Build your game target.
+The call is intentionally fire-and-forget. Subscribe to OnActivity for typed
+runtime telemetry and OnAppAction for actions delegated to the game.
 
-## Quick start (C++)
+## Features
 
-```cpp
-#include "NuxieSubsystem.h"
+HasFeatureAsync accepts fractional balances and an explicit
+ENuxieFeatureCheckPolicy. UseFeature reports usage without waiting.
+UseFeatureAndWaitAsync returns the atomic usage result and its authoritative
+access snapshot when one is available.
 
-UNuxieSubsystem* Nuxie = GetGameInstance()->GetSubsystem<UNuxieSubsystem>();
+Blueprint users can call:
 
-FNuxieConfigureOptions Config;
-Config.ApiKey = TEXT("NX_PROD_...");
-Config.bUsePurchaseController = true;
+- Shutdown Nuxie
+- Has Nuxie Feature
+- Use Nuxie Feature And Wait
+- Dismiss Nuxie
+- Set Nuxie Locale
 
-FNuxieError SetupError;
-if (!Nuxie->Configure(Config, SetupError)) {
-  UE_LOG(LogTemp, Error, TEXT("Nuxie setup failed: %s"), *SetupError.Message);
-}
-
-FNuxieError IdentifyError;
-Nuxie->Identify(TEXT("user_123"), {}, {}, IdentifyError);
-
-FNuxieTriggerOptions TriggerOptions;
-TriggerOptions.Properties.Add(TEXT("source"), TEXT("gameplay"));
-
-FString RequestId;
-FNuxieError TriggerError;
-Nuxie->StartTrigger(TEXT("premium_feature_tapped"), TriggerOptions, RequestId, TriggerError);
-```
-
-## Trigger terminal semantics
-
-`nuxie-ue` uses the same terminal rules as Nuxie mobile wrappers:
-
-Terminal:
-
-- `error`
-- `journey`
-- `decision.no_match`
-- `decision.suppressed`
-- `decision.allowed_immediate`
-- `decision.denied_immediate`
-- `entitlement.allowed`
-- `entitlement.denied`
-
-Non-terminal:
-
-- `decision.journey_started`
-- `decision.journey_resumed`
-- `decision.flow_shown`
-- `entitlement.pending`
-
-## Testing
-
-Run local contract and Android bridge tests:
-
-```bash
-./scripts/test-trigger-contract.mjs
-./scripts/test-android-bridge.sh
-```
-
-Or both via CI-equivalent sequence:
-
-```bash
-node ./scripts/test-trigger-contract.mjs
-./scripts/test-android-bridge.sh
-```
-
-Validate Unreal compile/package (UE 5.7 example):
-
-```bash
-UE_ROOT="/Users/Shared/Epic Games/UE_5.7"
-"$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildPlugin \
-  -Plugin="$(pwd)/Nuxie.uplugin" \
-  -Package="/tmp/nuxie-ue-package" \
-  -TargetPlatforms=Android+IOS \
-  -Rocket -StrictIncludes
-```
-
-If output shows only `Building plugin for host platforms: Mac`, UE does not currently see Android/iOS as valid code targets. See `docs/testing.md` for SDK troubleshooting commands.
-
-## Documentation
-
-- `docs/getting-started.md`
-- `docs/api-reference.md`
-- `docs/android-bridge.md`
-- `docs/ios-bridge.md`
-- `docs/testing.md`
-- `docs/architecture.md`
-
-## Contributing
-
-1. Keep runtime semantics aligned with `nuxie-ios` / `nuxie-android`.
-2. Add or update contract tests when changing trigger/purchase behavior.
-3. Keep JNI/ObjC++ bridge changes explicit and accompanied by docs.
+See [getting started](docs/getting-started.md) and the
+[API reference](docs/api-reference.md).
